@@ -22,6 +22,13 @@ class DatabaseSeeder extends Seeder
                 'password' => bcrypt('Dashboard2026!'),
             ]
         );
+        User::firstOrCreate(
+            ['email' => 'katherinecornielle07@gmail.com '],
+            [
+                'name' => 'Katherine Cornielle',
+                'password' => bcrypt('Katherine2026'),
+            ]
+        );
 
         $this->call(CommercialDataSeeder::class);
     }

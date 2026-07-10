@@ -258,6 +258,13 @@
 
     <script>
         function dashboard() {
+            // Chart.js instances stay out of Alpine's reactive state on purpose: Alpine wraps
+            // returned object properties in a reactive Proxy, and Chart.js's internal mutable
+            // state (ctx, scales, caches) doesn't tolerate being proxied — updates silently stop
+            // taking effect. Keeping them as plain closure variables avoids that.
+            let barChart = null;
+            let citasChart = null;
+
             return {
                 monthsAll: @json(collect($activeMonths)->map(fn($n) => ['num' => $n, 'label' => $monthLabels[$n]])->values()),
                 categories: [
@@ -274,8 +281,6 @@
                 sortDir: 'desc',
                 tableOpen: true,
                 pendienteOpen: false,
-                barChart: null,
-                citasChart: null,
 
                 catMap() {
                     return Object.fromEntries(this.categories.map(c => [c.key, c]));
@@ -351,59 +356,71 @@
                     const labels = months.map(m => m.label);
                     const catList = this.categories.filter(c => this.selectedCats.includes(c.key));
 
-                    const barCtx = document.getElementById('barChart');
-                    if (this.barChart) this.barChart.destroy();
-                    this.barChart = new Chart(barCtx, {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: catList.map(c => ({
-                                label: c.label,
-                                data: months.map(m => this.summary[m.num][c.key]),
-                                backgroundColor: c.color,
-                                borderRadius: 5,
-                                maxBarThickness: 38,
-                            })),
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { position: 'top', labels: { font: { size: 12.5 } } },
-                                tooltip: {
-                                    callbacks: { label: (ctx) => `${ctx.dataset.label}: ${this.money(ctx.raw)}` },
+                    const barData = {
+                        labels,
+                        datasets: catList.map(c => ({
+                            label: c.label,
+                            data: months.map(m => this.summary[m.num][c.key]),
+                            backgroundColor: c.color,
+                            borderRadius: 5,
+                            maxBarThickness: 38,
+                        })),
+                    };
+
+                    if (barChart) {
+                        barChart.data = barData;
+                        barChart.update();
+                    } else {
+                        const barCtx = document.getElementById('barChart');
+                        barChart = new Chart(barCtx, {
+                            type: 'bar',
+                            data: barData,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { position: 'top', labels: { font: { size: 12.5 } } },
+                                    tooltip: {
+                                        callbacks: { label: (ctx) => `${ctx.dataset.label}: ${this.money(ctx.raw)}` },
+                                    },
+                                },
+                                scales: {
+                                    x: { grid: { display: false }, ticks: { font: { size: 12.5 }, color: '#64748B' } },
+                                    y: { grid: { color: '#EDF1F5' }, ticks: { callback: (v) => this.moneyShort(v), font: { size: 12 }, color: '#64748B' } },
                                 },
                             },
-                            scales: {
-                                x: { grid: { display: false }, ticks: { font: { size: 12.5 }, color: '#64748B' } },
-                                y: { grid: { color: '#EDF1F5' }, ticks: { callback: (v) => this.moneyShort(v), font: { size: 12 }, color: '#64748B' } },
-                            },
-                        },
-                    });
+                        });
+                    }
 
-                    const citasCtx = document.getElementById('citasChart');
-                    if (this.citasChart) this.citasChart.destroy();
-                    this.citasChart = new Chart(citasCtx, {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [
-                                { label: 'Citas totales', data: months.map(m => this.summary[m.num].citasTotales), backgroundColor: '#0EA5B7', borderRadius: 5, maxBarThickness: 44 },
-                                { label: 'Citas nuevas', data: months.map(m => this.summary[m.num].citasNuevas), backgroundColor: '#93C5FD', borderRadius: 5, maxBarThickness: 44 },
-                            ],
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { position: 'top', labels: { font: { size: 12.5 } } },
+                    const citasData = {
+                        labels,
+                        datasets: [
+                            { label: 'Citas totales', data: months.map(m => this.summary[m.num].citasTotales), backgroundColor: '#0EA5B7', borderRadius: 5, maxBarThickness: 44 },
+                            { label: 'Citas nuevas', data: months.map(m => this.summary[m.num].citasNuevas), backgroundColor: '#93C5FD', borderRadius: 5, maxBarThickness: 44 },
+                        ],
+                    };
+
+                    if (citasChart) {
+                        citasChart.data = citasData;
+                        citasChart.update();
+                    } else {
+                        const citasCtx = document.getElementById('citasChart');
+                        citasChart = new Chart(citasCtx, {
+                            type: 'bar',
+                            data: citasData,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { position: 'top', labels: { font: { size: 12.5 } } },
+                                },
+                                scales: {
+                                    x: { grid: { display: false }, ticks: { font: { size: 12.5 }, color: '#64748B' } },
+                                    y: { grid: { color: '#EDF1F5' }, ticks: { font: { size: 12 }, color: '#64748B' } },
+                                },
                             },
-                            scales: {
-                                x: { grid: { display: false }, ticks: { font: { size: 12.5 }, color: '#64748B' } },
-                                y: { grid: { color: '#EDF1F5' }, ticks: { font: { size: 12 }, color: '#64748B' } },
-                            },
-                        },
-                    });
+                        });
+                    }
                 },
 
                 init() {
