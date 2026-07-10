@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(composer create-project *)",
+      "Read(//c/Users/odalisabreu/AppData/Local/Temp/laravel_new/**)",
+      "Bash(composer install *)",
+      "Bash(php artisan *)",
+      "Bash(composer require *)",
+      "Bash(php -m)",
+      "Bash(php --ini)",
+      "Read(//c/laragon/bin/php/php-8.3.30/**)",
+      "Read(//c/laragon/bin/php/php-8.3.30/ext/**)",
+      "Bash(mysql -u root -e \"SELECT 1;\")",
+      "Bash(mysql -u root -e \"CREATE DATABASE IF NOT EXISTS dash_comercial CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "Bash(mysql -u root -e \"SHOW DATABASES;\")",
+      "Bash(mysql -u root dash_comercial -e \"SELECT \\(SELECT COUNT\\(*\\) FROM clients\\) clients, \\(SELECT COUNT\\(*\\) FROM opportunities\\) opps, \\(SELECT COUNT\\(*\\) FROM goals\\) goals, \\(SELECT COUNT\\(*\\) FROM monthly_stats\\) stats, \\(SELECT COUNT\\(*\\) FROM users\\) users;\")"
+    ]
+  }
+}

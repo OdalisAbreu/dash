@@ -1,0 +1,577 @@
+import React, { useState, useMemo } from "react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend, ComposedChart
+} from "recharts";
+import {
+  DollarSign, TrendingDown, TrendingUp, Clock, Target, CalendarCheck,
+  Search, ChevronDown, ChevronUp
+} from "lucide-react";
+
+// ---------------------------------------------------------------------------
+// DATA — estructurado a partir del reporte de actividad comercial (Abril–Junio)
+// ---------------------------------------------------------------------------
+
+const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Otros 2026"];
+
+const META_2026 = 154317;
+
+const RESUMEN_MES = {
+  Enero:  { facturado: 0, perdido: 0, pipelineNuevo: 0, citasTotales: 0, citasNuevas: 0 },
+  Febrero:{ facturado: 15755.5, perdido: 0, pipelineNuevo: 0, citasTotales: 0, citasNuevas: 0 },
+  Marzo:  { facturado: 5000, perdido: 0, pipelineNuevo: 51500, citasTotales: 0, citasNuevas: 0 },
+  Abril: { facturado: 0, perdido: 28480, pipelineNuevo: 96029, citasTotales: 22, citasNuevas: 9 },
+  Mayo:  { facturado: 23072, perdido: 95950, pipelineNuevo: 93696, citasTotales: 17, citasNuevas: 9 },
+  Junio: { facturado: 9989, perdido: 65713, pipelineNuevo: 122638, citasTotales: 16, citasNuevas: 9 },
+  Julio: { facturado: 17900, perdido: 0, pipelineNuevo: 13450, citasTotales: 0, citasNuevas: 0 },
+  "Otros 2026": { facturado: 0, perdido: 175500, pipelineNuevo: 0, citasTotales: 0, citasNuevas: 0 },
+};
+
+const CATEGORIAS = [
+  { key: "facturado", label: "Ganado", color: "#0F9D6E" },
+  { key: "perdido", label: "Perdido", color: "#E14F44" },
+  { key: "pipelineNuevo", label: "Pipeline nuevo", color: "#3E63DD" },
+];
+
+const CAT_MAP = Object.fromEntries(CATEGORIAS.map(c => [c.key, c]));
+
+// detalle: mes, categoria, cliente, servicio, monto, estado
+const DETALLE = [
+  // --- Facturado ---
+  { mes: "Febrero", categoria: "facturado", cliente: "Acap", servicio: "Elearning técnico", monto: 5766, estado: "Pagado" },
+  { mes: "Febrero", categoria: "facturado", cliente: "Mallen", servicio: "Programa de gerentes de distrito", monto: 9989.5, estado: "Pagado" },
+  { mes: "Marzo", categoria: "facturado", cliente: "Superintendencia de Bancos", servicio: "Kickoff a Gestión Humana", monto: 5000, estado: "Pagado" },
+  { mes: "Mayo", categoria: "facturado", cliente: "ET Heinsen", servicio: "Taller fundamentos de liderazgo", monto: 2000, estado: "Pagado" },
+  { mes: "Mayo", categoria: "facturado", cliente: "Popular", servicio: "Talleres modulares - Liderazgo lateral", monto: 4650, estado: "Pagado" },
+  { mes: "Mayo", categoria: "facturado", cliente: "Caribe", servicio: "Taller perform", monto: 1650, estado: "Pagado" },
+  { mes: "Mayo", categoria: "facturado", cliente: "ET Heinsen", servicio: "Pullso", monto: 5838, estado: "Pagado 50%" },
+  { mes: "Mayo", categoria: "facturado", cliente: "Banreservas", servicio: "Elearning", monto: 7434, estado: "Pagado" },
+  { mes: "Mayo", categoria: "facturado", cliente: "Abitare", servicio: "Teambuilding", monto: 1500, estado: "Pagado" },
+  { mes: "Junio", categoria: "facturado", cliente: "Mallen", servicio: "Programa para gerentes de distrito", monto: 9989, estado: "Facturado" },
+  { mes: "Julio", categoria: "facturado", cliente: "Superintendencia de Bancos", servicio: "Acompañamiento", monto: 2500, estado: "Facturado" },
+  { mes: "Julio", categoria: "facturado", cliente: "Costa Farms", servicio: "Programa acompañamiento líderes", monto: 15400, estado: "Facturado" },
+
+  // --- Perdido ---
+  { mes: "Mayo", categoria: "perdido", cliente: "La Famosa", servicio: "Programa modular", monto: 17500, estado: "Perdido" },
+  { mes: "Mayo", categoria: "perdido", cliente: "Emergent Cold", servicio: "Skala", monto: 5100, estado: "Perdido" },
+  { mes: "Mayo", categoria: "perdido", cliente: "Superintendencia", servicio: "Programa acompañamiento", monto: 21500, estado: "Aplazado / perdido" },
+  { mes: "Mayo", categoria: "perdido", cliente: "Ademi", servicio: "Gestión del cambio", monto: 42500, estado: "Perdido" },
+  { mes: "Mayo", categoria: "perdido", cliente: "Zona Friki", servicio: "Acompañamiento a líderes", monto: 1850, estado: "Perdido" },
+  { mes: "Mayo", categoria: "perdido", cliente: "Helados Bon", servicio: "Programa modular ventas", monto: 7500, estado: "Perdido" },
+  { mes: "Junio", categoria: "perdido", cliente: "Indotel", servicio: "Teambuilding (presupuesto)", monto: 1800, estado: "Perdido" },
+  { mes: "Junio", categoria: "perdido", cliente: "Plusval", servicio: "Teambuilding 300 personas", monto: 12850, estado: "Perdido - pedían logística incluida" },
+  { mes: "Junio", categoria: "perdido", cliente: "Ademi", servicio: "Elearning", monto: 6300, estado: "Pausado para próximo año" },
+  { mes: "Junio", categoria: "perdido", cliente: "Ademi", servicio: "Teambuilding", monto: 4500, estado: "Se fueron con otro proveedor" },
+  { mes: "Junio", categoria: "perdido", cliente: "Sanesto", servicio: "Taller de liderazgo", monto: 1650, estado: "Sin respuesta" },
+  { mes: "Junio", categoria: "perdido", cliente: "Adell", servicio: "Taller de liderazgo", monto: 1650, estado: "Sin respuesta" },
+  { mes: "Junio", categoria: "perdido", cliente: "Laboratorio Óptica", servicio: "Teambuilding", monto: 1800, estado: "Perdido" },
+  { mes: "Junio", categoria: "perdido", cliente: "Bravo", servicio: "Programa modular líderes de tienda", monto: 12800, estado: "Perdido por otras prioridades" },
+  { mes: "Junio", categoria: "perdido", cliente: "IHGRD", servicio: "Acompañamiento a líderes", monto: 2500, estado: "Perdido" },
+  { mes: "Junio", categoria: "perdido", cliente: "Desing ISA", servicio: "Teambuilding 500 personas", monto: 19863, estado: "Perdido por precio" },
+
+  // --- Perdidas adicionales del listado anual (no estaban registradas) ---
+  { mes: "Otros 2026", categoria: "perdido", cliente: "NYLC", servicio: "—", monto: 2500, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Banco Popular Dominicano", servicio: "—", monto: 5700, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Remax", servicio: "—", monto: 6600, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Banco Ademi", servicio: "—", monto: 5700, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Chevyplan", servicio: "—", monto: 1700, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Brinks", servicio: "—", monto: 2490, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Algiers", servicio: "—", monto: 3300, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Cooperativa Maimón", servicio: "Programa de ventas", monto: 11750, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Banco Popular Dominicano", servicio: "Genius", monto: 5000, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Ennova", servicio: "—", monto: 18000, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "TPG", servicio: "—", monto: 3550, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Melo, Martínez & Contín Abogados", servicio: "—", monto: 12000, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "DP World", servicio: "—", monto: 9000, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Banco Popular Dominicano", servicio: "—", monto: 13000, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Casa Brugal", servicio: "—", monto: 16000, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Rocedental", servicio: "—", monto: 3550, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Caribetrans", servicio: "—", monto: 4500, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Scotia GBS", servicio: "—", monto: 2000, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Scotia GBS", servicio: "—", monto: 850, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Banco Caribe", servicio: "—", monto: 5130, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Mailboxes", servicio: "—", monto: 1250, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Carol Morgan School", servicio: "—", monto: 1650, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Ministerio de Turismo", servicio: "—", monto: 20000, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Cervecería Nacional Dominicana", servicio: "—", monto: 19950, estado: "Perdido" },
+  { mes: "Otros 2026", categoria: "perdido", cliente: "Rannik", servicio: "—", monto: 330, estado: "Perdido" },
+
+  // --- Pendiente por facturar (cerrado sin facturar) ---
+  // (el detalle de "pendiente por facturar" ya no vive aquí por mes — ver PENDIENTE_ACTUAL,
+  // porque son las mismas oportunidades que se arrastran de un mes a otro)
+
+
+  // --- Pipeline nuevo ---
+  { mes: "Abril", categoria: "pipelineNuevo", cliente: "Banreservas", servicio: "Elearning técnico", monto: 7434, estado: "Ganado" },
+  { mes: "Abril", categoria: "pipelineNuevo", cliente: "BON", servicio: "Taller de ventas", monto: 7500, estado: "Perdido" },
+  { mes: "Abril", categoria: "pipelineNuevo", cliente: "BHD", servicio: "Elearning técnico", monto: 6700, estado: "Ganado sin facturar" },
+  { mes: "Abril", categoria: "pipelineNuevo", cliente: "Superintendencia", servicio: "Proceso gestión humana", monto: 21500, estado: "Se quedó para el próximo año" },
+  { mes: "Abril", categoria: "pipelineNuevo", cliente: "Laboratorios ALFA", servicio: "Programa gerentes", monto: 8600, estado: "En proceso" },
+  { mes: "Abril", categoria: "pipelineNuevo", cliente: "Sanesto", servicio: "Taller fundamentos liderazgo", monto: 1650, estado: "Perdido" },
+  { mes: "Abril", categoria: "pipelineNuevo", cliente: "Farmaconal", servicio: "Cultura del servicio", monto: 28045, estado: "En proceso" },
+  { mes: "Abril", categoria: "pipelineNuevo", cliente: "Laboratorio Óptica", servicio: "Teambuilding", monto: 1800, estado: "Perdido" },
+  { mes: "Abril", categoria: "pipelineNuevo", cliente: "Bravo", servicio: "Programa modular líderes de tienda", monto: 12800, estado: "Perdido por otras prioridades" },
+
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "Superintendencia de Bancos", servicio: "Programa modular servicio al cliente", monto: 19200, estado: "En proceso" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "Senasa", servicio: "Pullso", monto: 13366, estado: "En proceso" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "Senasa", servicio: "Teambuilding", monto: 4850, estado: "En proceso" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "Superintendencia de Bancos", servicio: "Teambuilding", monto: 4500, estado: "Ganado sin facturar" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "Hacienda Campo Verde", servicio: "Acompañamiento a líderes", monto: 1850, estado: "En proceso" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "Adell (firma de abogados)", servicio: "Teambuilding", monto: 1650, estado: "Perdido" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "DiDA", servicio: "Pullso", monto: 4800, estado: "En proceso" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "Ademi", servicio: "Teambuilding", monto: 4500, estado: "Perdido" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "An Uniformes", servicio: "Programa modular ventas", monto: 7980, estado: "Aprobado sin facturar" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "Laboratorios ALFA", servicio: "Programa talleres visitador médico - presupuesto", monto: 12500, estado: "En proceso" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "Mallen", servicio: "Programa actualización MORE", monto: 12500, estado: "En proceso" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "IHGRD", servicio: "Acompañamiento a líderes", monto: 2500, estado: "Perdido" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "Zona Friki", servicio: "Acompañamiento a líderes", monto: 1850, estado: "Perdido" },
+  { mes: "Mayo", categoria: "pipelineNuevo", cliente: "Abitare", servicio: "Acompañamiento a líderes", monto: 1650, estado: "Ganado" },
+
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Trane Trade", servicio: "Teambuilding", monto: 1650, estado: "Ganado sin facturar" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Coop Osaka", servicio: "Teambuilding", monto: 1650, estado: "En proceso" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Sheraton", servicio: "Taller de fundamentos de liderazgo", monto: 1650, estado: "En proceso" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Aduanas", servicio: "Teambuilding", monto: 1650, estado: "En proceso" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Banco Popular", servicio: "Programa modular", monto: 26000, estado: "En proceso - próximo año" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Indotel", servicio: "Teambuilding", monto: 1800, estado: "Perdido" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Heinsen", servicio: "Programa modular", monto: 13454, estado: "En proceso" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "DP World", servicio: "Taller de IE y toma de decisiones", monto: 4500, estado: "En proceso" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Superintendencia de Bancos", servicio: "Acompañamiento", monto: 2500, estado: "Ganado" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Cirsa", servicio: "Teambuilding", monto: 2960, estado: "En proceso" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Bellamar", servicio: "Programa liderazgo", monto: 18811, estado: "En proceso - oferta económica enviada" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "ST Medic", servicio: "Train the trainer", monto: 4500, estado: "En proceso" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Gym Ingeniería", servicio: "Consultoría", monto: 8800, estado: "En proceso" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Desing ISA", servicio: "Teambuilding 500 personas", monto: 19863, estado: "Perdido por precio" },
+  { mes: "Junio", categoria: "pipelineNuevo", cliente: "Plusval", servicio: "Teambuilding 300 personas", monto: 12850, estado: "Perdido - logística" },
+
+  // --- Pipeline nuevo julio ---
+  { mes: "Julio", categoria: "pipelineNuevo", cliente: "Litter Cesars", servicio: "Taller de servicio para líderes", monto: 4950, estado: "En proceso" },
+  { mes: "Julio", categoria: "pipelineNuevo", cliente: "Mallen", servicio: "Construcción del perfil ideal", monto: 8500, estado: "En proceso" },
+  { mes: "Marzo", categoria: "pipelineNuevo", cliente: "Grupo Mallen", servicio: "Programa VM", monto: 31500, estado: "En proceso" },
+  { mes: "Marzo", categoria: "pipelineNuevo", cliente: "DIF", servicio: "Cultura del servicio", monto: 15000, estado: "En proceso" },
+  { mes: "Marzo", categoria: "pipelineNuevo", cliente: "Banco Caribe", servicio: "People Analytics", monto: 5000, estado: "En proceso" },
+];
+
+// Pendiente por facturar: saldo actual (no se repite por mes, es la misma
+// oportunidad arrastrada). An Uniforme y Costa Farms venían pendientes desde
+// mayo y siguen pendientes en junio; Mallen se facturó en junio así que ya
+// no cuenta aquí; BHD se sumó como nueva pendiente en junio.
+const PENDIENTE_ACTUAL = [
+  { cliente: "An Uniforme", servicio: "Programa modular ventas", monto: 7980, estado: "Aprobado sin facturar - esperado Julio-Agosto" },
+  { cliente: "BHD", servicio: "Elearning técnico", monto: 6700, estado: "Ganado sin facturar - esperado Julio" },
+  { cliente: "Superintendencia de Bancos", servicio: "Teambuilding", monto: 4500, estado: "Ganado sin facturar" },
+  { cliente: "Trane Trade", servicio: "Teambuilding", monto: 1650, estado: "Ganado sin facturar" },
+];
+const TOTAL_PENDIENTE = PENDIENTE_ACTUAL.reduce((s, d) => s + d.monto, 0);
+
+// Pipeline total (en curso): suma de todas las oportunidades de pipeline nuevo
+// que siguen "En proceso" (sin contar las ya ganadas o perdidas) más lo
+// pendiente por facturar (ya ganado, a la espera de facturarse).
+const PIPELINE_EN_PROCESO = DETALLE
+  .filter((d) => d.categoria === "pipelineNuevo" && d.estado.startsWith("En proceso"))
+  .reduce((s, d) => s + d.monto, 0);
+const PIPELINE_TOTAL_NETO = PIPELINE_EN_PROCESO + TOTAL_PENDIENTE;
+
+const money = (n) => n == null ? "—" : "$" + Math.round(n).toLocaleString("en-US");
+const moneyShort = (n) => {
+  if (n == null) return "—";
+  if (Math.abs(n) >= 1000) return "$" + (n / 1000).toFixed(0) + "k";
+  return "$" + n;
+};
+
+export default function Dashboard() {
+  const [mesesSel, setMesesSel] = useState([...MESES]);
+  const [catSel, setCatSel] = useState(CATEGORIAS.map(c => c.key));
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState({ field: "monto", dir: "desc" });
+  const [tableOpen, setTableOpen] = useState(true);
+  const [pendienteOpen, setPendienteOpen] = useState(false);
+
+  const toggleMes = (m) => {
+    setMesesSel((prev) => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
+  };
+  const toggleCat = (k) => {
+    setCatSel((prev) => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]);
+  };
+
+  const kpis = useMemo(() => {
+    // Facturado, Perdido y Pipeline nuevo son flujos del mes: se suman.
+    // Pipeline total es un saldo: se toma el valor del último mes seleccionado.
+    const acc = { facturado: 0, perdido: 0, pipelineNuevo: 0, citasTotales: 0, citasNuevas: 0 };
+    mesesSel.forEach((m) => {
+      const r = RESUMEN_MES[m];
+      acc.facturado += r.facturado;
+      acc.perdido += r.perdido;
+      acc.pipelineNuevo += r.pipelineNuevo;
+      acc.citasTotales += r.citasTotales;
+      acc.citasNuevas += r.citasNuevas;
+    });
+    return acc;
+  }, [mesesSel]);
+
+  const chartData = useMemo(() => {
+    return MESES.filter(m => mesesSel.includes(m)).map((m) => {
+      const r = RESUMEN_MES[m];
+      const row = { mes: m };
+      CATEGORIAS.forEach(c => { if (catSel.includes(c.key)) row[c.key] = r[c.key]; });
+      return row;
+    });
+  }, [mesesSel, catSel]);
+
+  const citasData = useMemo(() => {
+    return MESES.filter(m => mesesSel.includes(m)).map((m) => ({
+      mes: m, totales: RESUMEN_MES[m].citasTotales, nuevas: RESUMEN_MES[m].citasNuevas
+    }));
+  }, [mesesSel]);
+
+  const filteredDetalle = useMemo(() => {
+    let rows = DETALLE.filter(d => mesesSel.includes(d.mes) && catSel.includes(d.categoria));
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      rows = rows.filter(d => d.cliente.toLowerCase().includes(q) || d.servicio.toLowerCase().includes(q) || d.estado.toLowerCase().includes(q));
+    }
+    rows = [...rows].sort((a, b) => {
+      let av = a[sortBy.field], bv = b[sortBy.field];
+      if (typeof av === "string") { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+      if (av < bv) return sortBy.dir === "asc" ? -1 : 1;
+      if (av > bv) return sortBy.dir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return rows;
+  }, [mesesSel, catSel, search, sortBy]);
+
+  const setSort = (field) => {
+    setSortBy((prev) => prev.field === field ? { field, dir: prev.dir === "asc" ? "desc" : "asc" } : { field, dir: "desc" });
+  };
+
+  const winRate = kpis.facturado + kpis.perdido > 0 ? (kpis.facturado / (kpis.facturado + kpis.perdido) * 100) : 0;
+
+  const logroYTD = useMemo(() => MESES.reduce((s, m) => s + RESUMEN_MES[m].facturado, 0), []);
+  const faltaMeta = Math.max(META_2026 - logroYTD, 0);
+  const pctMeta = Math.min((logroYTD / META_2026) * 100, 100);
+
+  // Tasa de cierre global (todo el año, no solo lo filtrado): Ganado / (Ganado + Perdido)
+  const perdidoYTD = useMemo(() => MESES.reduce((s, m) => s + RESUMEN_MES[m].perdido, 0), []);
+  const winRateGlobal = (logroYTD + perdidoYTD) > 0 ? (logroYTD / (logroYTD + perdidoYTD) * 100) : 0;
+
+  // Pipeline necesario para cerrar la meta: lo que falta, dividido entre la
+  // tasa de cierre histórica. Si cierro al X% de lo que trabajo, necesito
+  // generar/tener en pipeline (falta / X%) para asegurar ese monto ganado.
+  const pipelineNecesario = winRateGlobal > 0 ? faltaMeta / (winRateGlobal / 100) : null;
+
+  return (
+    <div style={{
+      fontFamily: "'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif",
+      background: "#EEF1F6",
+      minHeight: "100vh",
+      padding: "28px 24px 60px",
+      color: "#1A2333",
+      boxSizing: "border-box"
+    }}>
+      <style>{`
+        * { box-sizing: border-box; }
+        .display-font { font-family: 'Space Grotesk', 'Inter', ui-sans-serif, system-ui, sans-serif; }
+        .chip { cursor:pointer; user-select:none; transition: all .15s ease; }
+        .chip:hover { transform: translateY(-1px); }
+        table.dt { border-collapse: collapse; width: 100%; }
+        table.dt th { text-align:left; font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:#64748B; padding:10px 12px; border-bottom:2px solid #E2E8F0; cursor:pointer; white-space:nowrap; }
+        table.dt td { padding:10px 12px; border-bottom:1px solid #EDF1F5; font-size:13.5px; }
+        table.dt tbody tr:hover { background:#F7F9FC; }
+        ::-webkit-scrollbar { height:8px; width:8px; }
+        ::-webkit-scrollbar-thumb { background:#CBD5E1; border-radius:4px; }
+      `}</style>
+
+      {/* Header */}
+      <div style={{ maxWidth: 1240, margin: "0 auto 22px" }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.12em", color: "#3E63DD", textTransform: "uppercase" }}>Reporte comercial</div>
+            <h1 className="display-font" style={{ fontSize: 30, fontWeight: 700, margin: "4px 0 2px", letterSpacing: "-0.01em" }}>
+              Actividad de ventas — Enero a Julio 2026
+            </h1>
+            <div style={{ fontSize: 13.5, color: "#64748B" }}>Seguimiento de facturación, oportunidades perdidas, pendientes y pipeline generado.</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Meta anual 2026 */}
+      <div style={{ maxWidth: 1240, margin: "0 auto 20px" }}>
+        <div style={{ background: "#1A2333", borderRadius: 16, padding: "20px 24px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 20, marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Meta 2026</div>
+              <div className="display-font" style={{ fontSize: 26, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{money(META_2026)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Logro YTD</div>
+              <div className="display-font" style={{ fontSize: 26, fontWeight: 700, color: "#34D399", fontVariantNumeric: "tabular-nums" }}>{money(logroYTD)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Falta para la meta</div>
+              <div className="display-font" style={{ fontSize: 26, fontWeight: 700, color: "#F5A623", fontVariantNumeric: "tabular-nums" }}>{money(faltaMeta)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Pipeline necesario para la meta</div>
+              <div className="display-font" style={{ fontSize: 26, fontWeight: 700, color: "#93C5FD", fontVariantNumeric: "tabular-nums" }}>{pipelineNecesario == null ? "—" : money(pipelineNecesario)}</div>
+              <div style={{ fontSize: 10.5, color: "#64748B", marginTop: 2 }}>a tasa de cierre actual: {winRateGlobal.toFixed(0)}%</div>
+            </div>
+          </div>
+          <div style={{ height: 12, borderRadius: 999, background: "rgba(255,255,255,0.12)", overflow: "hidden" }}>
+            <div style={{ width: `${pctMeta}%`, height: "100%", background: "linear-gradient(90deg, #34D399, #0F9D6E)", borderRadius: 999 }} />
+          </div>
+          <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 8 }}>{pctMeta.toFixed(1)}% de la meta anual alcanzado (enero–julio 2026)</div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div style={{ maxWidth: 1240, margin: "0 auto 20px", display: "flex", gap: 14, flexWrap: "wrap" }}>
+        <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "12px 16px", flex: "1 1 320px" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Mes</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {MESES.map(m => {
+              const active = mesesSel.includes(m);
+              return (
+                <div key={m} className="chip" onClick={() => toggleMes(m)}
+                  style={{
+                    padding: "6px 14px", borderRadius: 999, fontSize: 13, fontWeight: 600,
+                    background: active ? "#1A2333" : "#F1F4F9",
+                    color: active ? "#fff" : "#64748B",
+                    border: active ? "1px solid #1A2333" : "1px solid #E2E8F0"
+                  }}>
+                  {m}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "12px 16px", flex: "2 1 500px" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Variable</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {CATEGORIAS.map(c => {
+              const active = catSel.includes(c.key);
+              return (
+                <div key={c.key} className="chip" onClick={() => toggleCat(c.key)}
+                  style={{
+                    padding: "6px 14px", borderRadius: 999, fontSize: 13, fontWeight: 600,
+                    background: active ? c.color + "1A" : "#F1F4F9",
+                    color: active ? c.color : "#64748B",
+                    border: active ? `1px solid ${c.color}55` : "1px solid #E2E8F0",
+                    display: "flex", alignItems: "center", gap: 6
+                  }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: active ? c.color : "#CBD5E1" }} />
+                  {c.label}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div style={{ maxWidth: 1240, margin: "0 auto 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14 }}>
+        <KpiCard icon={<DollarSign size={17} />} label="Facturado" value={money(kpis.facturado)} color="#0F9D6E" />
+        <KpiCard icon={<TrendingDown size={17} />} label="Perdido" value={money(kpis.perdido)} color="#E14F44" />
+        <KpiCard icon={<Clock size={17} />} label="Pendiente por facturar (saldo actual)" value={money(TOTAL_PENDIENTE)} color="#D89A2C" onClick={() => setPendienteOpen(o => !o)} active={pendienteOpen} />
+        <KpiCard icon={<TrendingUp size={17} />} label="Pipeline nuevo generado" value={money(kpis.pipelineNuevo)} color="#3E63DD" />
+        <KpiCard icon={<Target size={17} />} label="Pipeline total (en proceso + pendiente)" value={money(PIPELINE_TOTAL_NETO)} color="#6D28D9" />
+        <KpiCard icon={<CalendarCheck size={17} />} label="Citas (total / nuevas)" value={`${kpis.citasTotales} / ${kpis.citasNuevas}`} color="#0EA5B7" />
+      </div>
+
+      {/* Pendiente por facturar: saldo único, sin repetir por mes */}
+      {pendienteOpen && (
+      <div style={{ maxWidth: 1240, margin: "0 auto 20px" }}>
+        <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, overflow: "hidden" }}>
+          <div style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #E2E8F0" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div className="display-font" style={{ fontSize: 15, fontWeight: 700 }}>Pendiente por facturar — detalle</div>
+              <div style={{ fontSize: 12, color: "#64748B", background: "#F1F4F9", padding: "2px 8px", borderRadius: 999 }}>{PENDIENTE_ACTUAL.length} clientes</div>
+            </div>
+            <div className="display-font" style={{ fontSize: 18, fontWeight: 700, color: "#D89A2C" }}>{money(TOTAL_PENDIENTE)}</div>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table className="dt">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Servicio / Programa</th>
+                  <th style={{ textAlign: "right" }}>Monto</th>
+                  <th>Estado / Nota</th>
+                </tr>
+              </thead>
+              <tbody>
+                {PENDIENTE_ACTUAL.map((d, i) => (
+                  <tr key={i}>
+                    <td style={{ fontWeight: 600 }}>{d.cliente}</td>
+                    <td style={{ color: "#475569" }}>{d.servicio}</td>
+                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{money(d.monto)}</td>
+                    <td style={{ color: "#64748B" }}>{d.estado}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding: "8px 18px 14px", fontSize: 11.5, color: "#94A3B8" }}>
+            Cada cliente aparece una sola vez con su monto total, aunque la oportunidad se haya arrastrado de un mes anterior.
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* Win rate strip */}
+      <div style={{ maxWidth: 1240, margin: "0 auto 20px" }}>
+        <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "16px 20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#1A2333" }}>Tasa de cierre (Facturado vs. Perdido)</div>
+            <div className="display-font" style={{ fontSize: 20, fontWeight: 700, color: winRate >= 50 ? "#0F9D6E" : "#E14F44" }}>{winRate.toFixed(0)}%</div>
+          </div>
+          <div style={{ height: 10, borderRadius: 999, background: "#F1F4F9", overflow: "hidden", display: "flex" }}>
+            <div style={{ width: `${winRate}%`, background: "#0F9D6E" }} />
+            <div style={{ width: `${100 - winRate}%`, background: "#E14F44" }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Charts row */}
+      <div style={{ maxWidth: 1240, margin: "0 auto 20px" }}>
+        <ChartCard title="Evolución mensual por variable">
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#EDF1F5" vertical={false} />
+              <XAxis dataKey="mes" tick={{ fontSize: 12.5, fill: "#64748B" }} axisLine={{ stroke: "#E2E8F0" }} tickLine={false} />
+              <YAxis tickFormatter={moneyShort} tick={{ fontSize: 12, fill: "#64748B" }} axisLine={false} tickLine={false} width={55} />
+              <Tooltip formatter={(v, name) => [money(v), CAT_MAP[name]?.label || name]} contentStyle={{ borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 13 }} />
+              <Legend formatter={(v) => CAT_MAP[v]?.label || v} wrapperStyle={{ fontSize: 12.5 }} />
+              {CATEGORIAS.filter(c => catSel.includes(c.key)).map(c => (
+                <Bar key={c.key} dataKey={c.key} fill={c.color} radius={[5, 5, 0, 0]} maxBarSize={38} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      {/* Citas chart */}
+      <div style={{ maxWidth: 1240, margin: "0 auto 20px" }}>
+        <ChartCard title="Citas por mes (total vs. nuevas)">
+          <ResponsiveContainer width="100%" height={220}>
+            <ComposedChart data={citasData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#EDF1F5" vertical={false} />
+              <XAxis dataKey="mes" tick={{ fontSize: 12.5, fill: "#64748B" }} axisLine={{ stroke: "#E2E8F0" }} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: "#64748B" }} axisLine={false} tickLine={false} width={30} />
+              <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 13 }} />
+              <Legend wrapperStyle={{ fontSize: 12.5 }} />
+              <Bar dataKey="totales" name="Citas totales" fill="#0EA5B7" radius={[5, 5, 0, 0]} maxBarSize={44} />
+              <Bar dataKey="nuevas" name="Citas nuevas" fill="#93C5FD" radius={[5, 5, 0, 0]} maxBarSize={44} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      {/* Detail table */}
+      <div style={{ maxWidth: 1240, margin: "0 auto" }}>
+        <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, overflow: "hidden" }}>
+          <div style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: tableOpen ? "1px solid #E2E8F0" : "none", cursor: "pointer" }}
+            onClick={() => setTableOpen(!tableOpen)}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div className="display-font" style={{ fontSize: 15, fontWeight: 700 }}>Detalle de oportunidades</div>
+              <div style={{ fontSize: 12, color: "#64748B", background: "#F1F4F9", padding: "2px 8px", borderRadius: 999 }}>{filteredDetalle.length} registros</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {tableOpen && (
+                <div style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
+                  <Search size={14} style={{ position: "absolute", left: 10, top: 9, color: "#94A3B8" }} />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar cliente o servicio..."
+                    style={{ padding: "7px 10px 7px 30px", borderRadius: 8, border: "1px solid #E2E8F0", fontSize: 13, outline: "none", width: 230 }}
+                  />
+                </div>
+              )}
+              {tableOpen ? <ChevronUp size={18} color="#64748B" /> : <ChevronDown size={18} color="#64748B" />}
+            </div>
+          </div>
+          {tableOpen && (
+            <div style={{ overflowX: "auto" }}>
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th onClick={() => setSort("mes")}>Mes</th>
+                    <th onClick={() => setSort("categoria")}>Variable</th>
+                    <th onClick={() => setSort("cliente")}>Cliente</th>
+                    <th onClick={() => setSort("servicio")}>Servicio / Programa</th>
+                    <th onClick={() => setSort("monto")} style={{ textAlign: "right" }}>Monto</th>
+                    <th onClick={() => setSort("estado")}>Estado / Nota</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDetalle.map((d, i) => (
+                    <tr key={i}>
+                      <td>{d.mes}</td>
+                      <td>
+                        <span style={{
+                          fontSize: 11.5, fontWeight: 600, padding: "3px 9px", borderRadius: 999,
+                          background: CAT_MAP[d.categoria].color + "1A", color: CAT_MAP[d.categoria].color
+                        }}>
+                          {CAT_MAP[d.categoria].label}
+                        </span>
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{d.cliente}</td>
+                      <td style={{ color: "#475569" }}>{d.servicio}</td>
+                      <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{money(d.monto)}</td>
+                      <td style={{ color: "#64748B" }}>{d.estado}</td>
+                    </tr>
+                  ))}
+                  {filteredDetalle.length === 0 && (
+                    <tr><td colSpan={6} style={{ textAlign: "center", padding: 26, color: "#94A3B8" }}>No hay registros para los filtros seleccionados.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        <div style={{ fontSize: 11.5, color: "#94A3B8", marginTop: 12, textAlign: "center" }}>
+          Fuente: reporte de actividad comercial (Abril, Mayo, Junio) enviado a gerencia de ventas.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ icon, label, value, color, onClick, active }) {
+  const clickable = !!onClick;
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: "#fff",
+        border: active ? `1px solid ${color}` : "1px solid #E2E8F0",
+        boxShadow: active ? `0 0 0 3px ${color}22` : "none",
+        borderRadius: 14,
+        padding: "14px 16px",
+        cursor: clickable ? "pointer" : "default",
+        transition: "all .15s ease",
+      }}
+      className={clickable ? "chip" : ""}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: color + "1A", color, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {icon}
+          </div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
+        </div>
+        {clickable && (active ? <ChevronUp size={15} color="#94A3B8" /> : <ChevronDown size={15} color="#94A3B8" />)}
+      </div>
+      <div className="display-font" style={{ fontSize: 22, fontWeight: 700, color: "#1A2333", fontVariantNumeric: "tabular-nums" }}>{value}</div>
+      {clickable && <div style={{ fontSize: 10.5, color: "#94A3B8", marginTop: 4 }}>{active ? "Ocultar detalle" : "Ver detalle"}</div>}
+    </div>
+  );
+}
+
+function ChartCard({ title, children }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 14, padding: "16px 18px" }}>
+      <div className="display-font" style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
