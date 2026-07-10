@@ -455,16 +455,15 @@
                             },
                             {
                                 type: 'line',
-                                label: 'Meta ajustada (balance acumulado)',
-                                data: months.map(m => this.summary[m.num].metaAjustada),
-                                borderColor: '#D89A2C',
-                                backgroundColor: '#D89A2C',
+                                label: 'Meta mensual',
+                                data: months.map(m => this.summary[m.num].metaMensual),
+                                borderColor: '#6D28D9',
+                                backgroundColor: '#6D28D9',
                                 borderWidth: 2,
-                                borderDash: [6, 4],
                                 pointRadius: 3,
-                                pointBackgroundColor: '#D89A2C',
+                                pointBackgroundColor: '#6D28D9',
                                 tension: 0,
-                                order: 1,
+                                order: 0,
                             },
                         ],
                     };
@@ -487,10 +486,9 @@
                                             label: (ctx) => `${ctx.dataset.label}: ${this.money(ctx.raw)}`,
                                             afterBody: (items) => {
                                                 const m = months[items[0].dataIndex];
-                                                const s = this.summary[m.num];
-                                                const bal = s.balanceMeta;
+                                                const bal = this.summary[m.num].balanceMeta;
                                                 const sign = bal >= 0 ? '+' : '−';
-                                                return `Meta base: ${this.money(s.metaMensual)}\nBalance al cierre del mes: ${sign}${this.money(Math.abs(bal))}`;
+                                                return `Balance al cierre del mes: ${sign}${this.money(Math.abs(bal))}`;
                                             },
                                         },
                                     },
