@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
         User::firstOrCreate(
-            ['email' => 'katherinecornielle07@gmail.com '],
+            ['email' => 'katherinecornielle07@gmail.com'],
             [
                 'name' => 'Katherine Cornielle',
                 'password' => bcrypt('Katherine2026'),
@@ -31,5 +31,6 @@ class DatabaseSeeder extends Seeder
         );
 
         $this->call(CommercialDataSeeder::class);
+        $this->call(MonthlyGoalSeeder::class);
     }
 }

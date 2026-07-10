@@ -190,57 +190,72 @@
         </div>
 
         {{-- Bar chart --}}
-        <div class="bg-white border border-[#E2E8F0] rounded-2xl px-4.5 py-4 mb-5">
+        <div class="bg-white border border-[#E2E8F0] rounded-2xl px-6 py-5 mb-5">
             <div class="display-font text-[15px] font-bold mb-2.5">Evolución mensual por variable</div>
             <div style="height: 300px;"><canvas id="barChart"></canvas></div>
         </div>
 
+        {{-- Meta mensual vs. facturado --}}
+        <div class="bg-white border border-[#E2E8F0] rounded-2xl px-6 py-5 mb-5">
+            <div class="flex items-baseline justify-between flex-wrap gap-1 mb-2.5">
+                <div class="display-font text-[15px] font-bold">Meta mensual vs. facturado</div>
+                <div class="text-[11.5px] text-[#94A3B8]">El déficit o superávit de cada mes ajusta la meta del mes siguiente</div>
+            </div>
+            <div style="height: 260px;"><canvas id="metaChart"></canvas></div>
+        </div>
+
         {{-- Citas chart --}}
-        <div class="bg-white border border-[#E2E8F0] rounded-2xl px-4.5 py-4 mb-5">
+        <div class="bg-white border border-[#E2E8F0] rounded-2xl px-6 py-5 mb-5">
             <div class="display-font text-[15px] font-bold mb-2.5">Citas por mes (total vs. nuevas)</div>
             <div style="height: 220px;"><canvas id="citasChart"></canvas></div>
         </div>
 
         {{-- Detail table --}}
         <div class="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden">
-            <div class="px-4.5 py-3.5 flex items-center justify-between border-b border-[#E2E8F0] cursor-pointer" @click="tableOpen = !tableOpen">
+            <div class="px-6 py-4 flex items-center justify-between border-b border-[#E2E8F0] cursor-pointer" @click="tableOpen = !tableOpen">
                 <div class="flex items-center gap-2.5">
                     <div class="display-font text-[15px] font-bold">Detalle de oportunidades</div>
                     <div class="text-xs text-[#64748B] bg-[#F1F4F9] px-2 py-0.5 rounded-full" x-text="filteredDetalle().length + ' registros'"></div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <div x-show="tableOpen" @click.stop class="relative">
+                    <div x-show="tableOpen" @click.stop class="flex items-center gap-2">
                         <input x-model="search" placeholder="Buscar cliente o servicio..."
                                class="pl-3 pr-3 py-1.5 rounded-lg border border-[#E2E8F0] text-[13px] outline-none w-[230px]">
+                        <select x-model.number="pageSize"
+                                class="py-1.5 pl-2.5 pr-7 rounded-lg border border-[#E2E8F0] text-[13px] outline-none bg-white">
+                            <template x-for="n in [10, 50, 100, 300]" :key="n">
+                                <option :value="n" x-text="n + ' / página'"></option>
+                            </template>
+                        </select>
                     </div>
                     <span x-text="tableOpen ? '▲' : '▼'" class="text-[#64748B]"></span>
                 </div>
             </div>
-            <div x-show="tableOpen" x-cloak class="overflow-x-auto">
+            <div x-show="tableOpen" x-cloak class="overflow-x-auto px-2">
                 <table class="dt border-collapse w-full">
                     <thead>
                         <tr class="text-left text-[11px] tracking-wider uppercase text-[#64748B]">
-                            <th class="px-3 py-2.5 border-b-2 border-[#E2E8F0]" @click="setSort('mes')">Mes</th>
-                            <th class="px-3 py-2.5 border-b-2 border-[#E2E8F0]" @click="setSort('categoria')">Variable</th>
-                            <th class="px-3 py-2.5 border-b-2 border-[#E2E8F0]" @click="setSort('cliente')">Cliente</th>
-                            <th class="px-3 py-2.5 border-b-2 border-[#E2E8F0]" @click="setSort('servicio')">Servicio / Programa</th>
-                            <th class="px-3 py-2.5 border-b-2 border-[#E2E8F0] text-right" @click="setSort('monto')">Monto</th>
-                            <th class="px-3 py-2.5 border-b-2 border-[#E2E8F0]" @click="setSort('estado')">Estado / Nota</th>
+                            <th class="px-4.5 py-2.5 border-b-2 border-[#E2E8F0]" @click="setSort('mes')">Mes</th>
+                            <th class="px-4.5 py-2.5 border-b-2 border-[#E2E8F0]" @click="setSort('categoria')">Variable</th>
+                            <th class="px-4.5 py-2.5 border-b-2 border-[#E2E8F0]" @click="setSort('cliente')">Cliente</th>
+                            <th class="px-4.5 py-2.5 border-b-2 border-[#E2E8F0]" @click="setSort('servicio')">Servicio / Programa</th>
+                            <th class="px-4.5 py-2.5 border-b-2 border-[#E2E8F0] text-right" @click="setSort('monto')">Monto</th>
+                            <th class="px-4.5 py-2.5 border-b-2 border-[#E2E8F0]" @click="setSort('estado')">Estado / Nota</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <template x-for="(d, i) in filteredDetalle()" :key="i">
+                        <template x-for="(d, i) in paginatedDetalle()" :key="i">
                             <tr class="hover:bg-[#F7F9FC]">
-                                <td class="px-3 py-2.5 border-b border-[#EDF1F5] text-[13.5px]" x-text="d.mesLabel"></td>
-                                <td class="px-3 py-2.5 border-b border-[#EDF1F5] text-[13.5px]">
+                                <td class="px-4.5 py-2.5 border-b border-[#EDF1F5] text-[13.5px]" x-text="d.mesLabel"></td>
+                                <td class="px-4.5 py-2.5 border-b border-[#EDF1F5] text-[13.5px]">
                                     <span class="text-[11.5px] font-semibold px-2.5 py-1 rounded-full"
                                           :style="`background:${catMap()[d.categoria].color}1A;color:${catMap()[d.categoria].color}`"
                                           x-text="catMap()[d.categoria].label"></span>
                                 </td>
-                                <td class="px-3 py-2.5 border-b border-[#EDF1F5] font-semibold text-[13.5px]" x-text="d.cliente"></td>
-                                <td class="px-3 py-2.5 border-b border-[#EDF1F5] text-[#475569] text-[13.5px]" x-text="d.servicio"></td>
-                                <td class="px-3 py-2.5 border-b border-[#EDF1F5] text-right font-semibold tabular-nums text-[13.5px]" x-text="money(d.monto)"></td>
-                                <td class="px-3 py-2.5 border-b border-[#EDF1F5] text-[#64748B] text-[13.5px]" x-text="d.estado"></td>
+                                <td class="px-4.5 py-2.5 border-b border-[#EDF1F5] font-semibold text-[13.5px]" x-text="d.cliente"></td>
+                                <td class="px-4.5 py-2.5 border-b border-[#EDF1F5] text-[#475569] text-[13.5px]" x-text="d.servicio"></td>
+                                <td class="px-4.5 py-2.5 border-b border-[#EDF1F5] text-right font-semibold tabular-nums text-[13.5px]" x-text="money(d.monto)"></td>
+                                <td class="px-4.5 py-2.5 border-b border-[#EDF1F5] text-[#64748B] text-[13.5px]" x-text="d.estado"></td>
                             </tr>
                         </template>
                         <tr x-show="filteredDetalle().length === 0">
@@ -248,6 +263,21 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+            <div x-show="tableOpen && filteredDetalle().length > 0" x-cloak
+                 class="flex items-center justify-between flex-wrap gap-2 px-6 py-3.5 border-t border-[#E2E8F0]">
+                <div class="text-[12.5px] text-[#64748B]" x-text="paginationLabel()"></div>
+                <div class="flex items-center gap-1.5">
+                    <button type="button" @click="page = 1" :disabled="page === 1"
+                            class="px-2.5 py-1 rounded-lg border border-[#E2E8F0] text-[12.5px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F1F4F9]">«</button>
+                    <button type="button" @click="page--" :disabled="page === 1"
+                            class="px-2.5 py-1 rounded-lg border border-[#E2E8F0] text-[12.5px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F1F4F9]">‹</button>
+                    <span class="text-[12.5px] font-semibold px-2" x-text="`${page} / ${totalPages()}`"></span>
+                    <button type="button" @click="page++" :disabled="page === totalPages()"
+                            class="px-2.5 py-1 rounded-lg border border-[#E2E8F0] text-[12.5px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F1F4F9]">›</button>
+                    <button type="button" @click="page = totalPages()" :disabled="page === totalPages()"
+                            class="px-2.5 py-1 rounded-lg border border-[#E2E8F0] text-[12.5px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F1F4F9]">»</button>
+                </div>
             </div>
         </div>
 
@@ -264,6 +294,7 @@
             // taking effect. Keeping them as plain closure variables avoids that.
             let barChart = null;
             let citasChart = null;
+            let metaChart = null;
 
             return {
                 monthsAll: @json(collect($activeMonths)->map(fn($n) => ['num' => $n, 'label' => $monthLabels[$n]])->values()),
@@ -281,6 +312,8 @@
                 sortDir: 'desc',
                 tableOpen: true,
                 pendienteOpen: false,
+                pageSize: 10,
+                page: 1,
 
                 catMap() {
                     return Object.fromEntries(this.categories.map(c => [c.key, c]));
@@ -342,6 +375,22 @@
                     return rows;
                 },
 
+                totalPages() {
+                    return Math.max(1, Math.ceil(this.filteredDetalle().length / this.pageSize));
+                },
+
+                paginatedDetalle() {
+                    const start = (this.page - 1) * this.pageSize;
+                    return this.filteredDetalle().slice(start, start + this.pageSize);
+                },
+
+                paginationLabel() {
+                    const total = this.filteredDetalle().length;
+                    const start = total === 0 ? 0 : (this.page - 1) * this.pageSize + 1;
+                    const end = Math.min(this.page * this.pageSize, total);
+                    return `Mostrando ${start}–${end} de ${total} registros`;
+                },
+
                 money(n) {
                     if (n === null || n === undefined) return '—';
                     return '$' + Math.round(n).toLocaleString('en-US');
@@ -392,6 +441,68 @@
                         });
                     }
 
+                    const metaData = {
+                        labels,
+                        datasets: [
+                            {
+                                type: 'bar',
+                                label: 'Facturado',
+                                data: months.map(m => this.summary[m.num].facturado),
+                                backgroundColor: '#0F9D6E',
+                                borderRadius: 5,
+                                maxBarThickness: 44,
+                                order: 2,
+                            },
+                            {
+                                type: 'line',
+                                label: 'Meta ajustada (balance acumulado)',
+                                data: months.map(m => this.summary[m.num].metaAjustada),
+                                borderColor: '#D89A2C',
+                                backgroundColor: '#D89A2C',
+                                borderWidth: 2,
+                                borderDash: [6, 4],
+                                pointRadius: 3,
+                                pointBackgroundColor: '#D89A2C',
+                                tension: 0,
+                                order: 1,
+                            },
+                        ],
+                    };
+
+                    if (metaChart) {
+                        metaChart.data = metaData;
+                        metaChart.update();
+                    } else {
+                        const metaCtx = document.getElementById('metaChart');
+                        metaChart = new Chart(metaCtx, {
+                            type: 'bar',
+                            data: metaData,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { position: 'top', labels: { font: { size: 12.5 } } },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: (ctx) => `${ctx.dataset.label}: ${this.money(ctx.raw)}`,
+                                            afterBody: (items) => {
+                                                const m = months[items[0].dataIndex];
+                                                const s = this.summary[m.num];
+                                                const bal = s.balanceMeta;
+                                                const sign = bal >= 0 ? '+' : '−';
+                                                return `Meta base: ${this.money(s.metaMensual)}\nBalance al cierre del mes: ${sign}${this.money(Math.abs(bal))}`;
+                                            },
+                                        },
+                                    },
+                                },
+                                scales: {
+                                    x: { grid: { display: false }, ticks: { font: { size: 12.5 }, color: '#64748B' } },
+                                    y: { grid: { color: '#EDF1F5' }, ticks: { callback: (v) => this.moneyShort(v), font: { size: 12 }, color: '#64748B' } },
+                                },
+                            },
+                        });
+                    }
+
                     const citasData = {
                         labels,
                         datasets: [
@@ -427,6 +538,10 @@
                     this.renderCharts();
                     this.$watch('selectedMonths', () => this.renderCharts());
                     this.$watch('selectedCats', () => this.renderCharts());
+                    this.$watch('search', () => { this.page = 1; });
+                    this.$watch('selectedMonths', () => { this.page = 1; });
+                    this.$watch('selectedCats', () => { this.page = 1; });
+                    this.$watch('pageSize', () => { this.page = 1; });
                 },
             };
         }

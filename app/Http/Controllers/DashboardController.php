@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Goal;
+use App\Models\MonthlyGoal;
 use App\Models\MonthlyStat;
 use App\Models\Opportunity;
 
@@ -39,6 +40,25 @@ class DashboardController extends Controller
                 'citasNuevas' => (int) ($stats[$num]->new_appointments ?? 0),
             ];
         }
+
+        // Cascading monthly goal: each month's target is its fixed base goal adjusted by the
+        // prior month's balance — a shortfall rolls forward and raises the next target, a surplus
+        // rolls forward and lowers it. Only applies to real calendar months (1-12), not "Otros" (0).
+        $monthlyGoals = MonthlyGoal::where('year', $year)->pluck('amount', 'month');
+        $balance = 0.0;
+        foreach (range(1, 12) as $num) {
+            $base = (float) ($monthlyGoals[$num] ?? 0);
+            $adjusted = $base - $balance;
+            $actual = $summary[$num]['facturado'];
+            $balance = $actual - $adjusted;
+
+            $summary[$num]['metaMensual'] = $base;
+            $summary[$num]['metaAjustada'] = $adjusted;
+            $summary[$num]['balanceMeta'] = $balance;
+        }
+        $summary[0]['metaMensual'] = 0.0;
+        $summary[0]['metaAjustada'] = 0.0;
+        $summary[0]['balanceMeta'] = 0.0;
 
         // Only expose months that actually have any data, so the filter row isn't 13 empty chips.
         $activeMonths = array_values(array_filter($monthOrder, function ($num) use ($summary) {
